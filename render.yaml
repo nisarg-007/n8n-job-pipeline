@@ -1,0 +1,91 @@
+databases:
+  - name: n8n-db
+    plan: free
+    databaseName: n8n
+    user: n8n
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: n8n
+    runtime: image
+    image:
+      url: docker.io/n8nio/n8n:latest
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      # Port n8n listens on (Render routes public traffic to this)
+      - key: N8N_PORT
+        value: "5678"
+      - key: PORT
+        value: "5678"
+
+      # Public URL config — Render fills these
+      - key: N8N_HOST
+        fromService:
+          name: n8n
+          type: web
+          property: host
+      - key: N8N_PROTOCOL
+        value: https
+      - key: WEBHOOK_URL
+        fromService:
+          name: n8n
+          type: web
+          property: hostport
+
+      # Timezone — cron fires 09/15/21 America/Chicago
+      - key: GENERIC_TIMEZONE
+        value: America/Chicago
+      - key: TZ
+        value: America/Chicago
+
+      # Encryption + auth
+      - key: N8N_ENCRYPTION_KEY
+        generateValue: true
+      - key: N8N_BASIC_AUTH_ACTIVE
+        value: "true"
+      - key: N8N_BASIC_AUTH_USER
+        value: nisarg
+      - key: N8N_BASIC_AUTH_PASSWORD
+        generateValue: true
+
+      # Allow $env.ANTHROPIC_API_KEY inside n8n expressions
+      - key: N8N_BLOCK_ENV_ACCESS_IN_NODE
+        value: "false"
+
+      # Anthropic key — sync:false means set in Render dashboard, not committed
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # Postgres wiring from the managed DB above
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_HOST
+        fromDatabase:
+          name: n8n-db
+          property: host
+      - key: DB_POSTGRESDB_PORT
+        fromDatabase:
+          name: n8n-db
+          property: port
+      - key: DB_POSTGRESDB_DATABASE
+        fromDatabase:
+          name: n8n-db
+          property: database
+      - key: DB_POSTGRESDB_USER
+        fromDatabase:
+          name: n8n-db
+          property: user
+      - key: DB_POSTGRESDB_PASSWORD
+        fromDatabase:
+          name: n8n-db
+          property: password
+      - key: DB_POSTGRESDB_SSL_ENABLED
+        value: "true"
+
+      # Reduce noise
+      - key: N8N_DIAGNOSTICS_ENABLED
+        value: "false"
+      - key: N8N_LOG_LEVEL
+        value: info
